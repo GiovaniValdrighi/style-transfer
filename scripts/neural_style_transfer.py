@@ -51,8 +51,8 @@ class style_transfer():
     Class that encapsulates the style transfer procedure
 
     Inputs:
-        content_path : path for the content image
-        style_path : path for the style image
+        content : content image, can be a tensor or a path for a image
+        style : style image, can be a tensor or a path for a image
         iterations: number of iterations to converge
         content_layers : list of index of VGG19 content layers
         style_layers : list of index of VGG19 style layers
@@ -63,9 +63,9 @@ class style_transfer():
 
     '''
     def __init__(self, 
-                content_path, 
-                style_path,
-                output_path = None,
+                content, 
+                style,
+                output_path = 'output.jpg',
                 content_layers = None, 
                 style_layers = None,
                 iterations = 500, 
@@ -73,11 +73,9 @@ class style_transfer():
                 style_weight = 1000000, 
                 verbose = False, 
                 cuda = False):
-        self.content_path = content_path
-        self.style_path = style_path
+        self.content = content
+        self.style = style
         self.output_path = output_path
-        if self.output_path is None:
-            self.output_path = os.path.dirname(self.content_path) + "/out.png"
         self.preprocess = transforms.Compose([
                                             transforms.Resize(256),
                                             transforms.CenterCrop(224),
@@ -109,7 +107,10 @@ class style_transfer():
         The image must be with shape 224x224, with mean [0.485, 0.456, 0.406]
         and standard deviation [0.229, 0.224, 0.225]
         '''
-        img = Image.open(path)
+        if isinstance(path, str):
+            img = Image.open(path)
+        else:
+            img = path
         return self.preprocess(img).unsqueeze(0)
 
     def content_loss(self, pred, target):
@@ -132,7 +133,7 @@ class style_transfer():
         gram_pred = self.gram_matrice(pred)
         return torch.pow(gram_pred - gram_target, 2).mean()
 
-    def run_style_transfer(self):
+    def train(self):
         '''
         Training process for the neural style transfer VGG19
         The method uses two images, the content and the style image, and generate a image that 
@@ -151,9 +152,9 @@ class style_transfer():
             print('Initialized model.')
 
         #Loading the images as tensors
-        content_img = self.load_image(self.content_path).to(self.device)
-        style_img = self.load_image(self.style_path).to(self.device)
-        init_img = self.load_image(self.content_path).to(self.device)
+        content_img = self.load_image(self.content).to(self.device)
+        style_img = self.load_image(self.style).to(self.device)
+        init_img = self.load_image(self.content).to(self.device)
         if self.verbose:
             print('Initialized images.')
 
