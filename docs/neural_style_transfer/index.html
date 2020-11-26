@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    
+    
+    <link rel="shortcut icon" href="../img/favicon.ico">
+
+    
+    <title>Implementação - Neural Style Transfer</title>
+    
+
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.12.0/css/all.css">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.12.0/css/v4-shims.css">
+    <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/hack-font@3.3.0/build/web/hack.min.css">
+    <link href='//rsms.me/inter/inter.css' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,700italic,400,300,600,700&subset=latin-ext,latin' rel='stylesheet' type='text/css'>
+    <link href="../css/bootstrap-custom.min.css" rel="stylesheet">
+    <link href="../css/base.min.css" rel="stylesheet">
+    <link href="../css/cinder.min.css" rel="stylesheet">
+
+    
+        
+        <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.18.0/build/styles/github.min.css">
+        
+    
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+            <script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/respond.js@1.4.2/dest/respond.min.js"></script>
+        <![endif]-->
+
+    
+
+     
+</head>
+
+<body>
+
+    <div class="navbar navbar-default navbar-fixed-top" role="navigation">
+    <div class="container">
+
+        <!-- Collapsed navigation -->
+        <div class="navbar-header">
+            <!-- Expander button -->
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            
+
+            <!-- Main title -->
+
+            
+              <a class="navbar-brand" href="..">Neural Style Transfer</a>
+            
+        </div>
+
+        <!-- Expanded navigation -->
+        <div class="navbar-collapse collapse">
+                <!-- Main navigation -->
+                <ul class="nav navbar-nav">
+                
+                
+                    <li >
+                        <a href="..">Home</a>
+                    </li>
+                
+                
+                
+                    <li class="active">
+                        <a href="./">Implementação</a>
+                    </li>
+                
+                
+                
+                    <li >
+                        <a href="../video_style_transfer/">Exemplo com vídeo</a>
+                    </li>
+                
+                
+                </ul>
+
+            <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="#" data-toggle="modal" data-target="#mkdocs_search_modal">
+                            <i class="fas fa-search"></i> Search
+                        </a>
+                    </li>
+                    <li >
+                        <a rel="prev" href="..">
+                            <i class="fas fa-arrow-left"></i> Previous
+                        </a>
+                    </li>
+                    <li >
+                        <a rel="next" href="../video_style_transfer/">
+                            Next <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+    <div class="container">
+        
+        
+        <div class="col-md-3"><div class="bs-sidebar hidden-print affix well" role="complementary">
+    <ul class="nav bs-sidenav">
+        <li class="first-level active"><a href="#neural-style-transfer">Neural Style Transfer</a></li>
+            <li class="second-level"><a href="#introducao">Introdução</a></li>
+                
+            <li class="second-level"><a href="#pre-processamento-das-imagens">Pré-processamento das imagens</a></li>
+                
+            <li class="second-level"><a href="#modelo">Modelo</a></li>
+                
+            <li class="second-level"><a href="#funcao-de-perda">Função de perda</a></li>
+                
+            <li class="second-level"><a href="#treinamento">Treinamento</a></li>
+                
+            <li class="second-level"><a href="#exemplos">Exemplos</a></li>
+                
+                <li class="third-level"><a href="#gata-e-noite-estrelada-de-van-gogh">Gata e Noite estrelada de Van Gogh</a></li>
+                <li class="third-level"><a href="#cachorro-e-pintura-o-grito-de-edvard-munch">Cachorro e pintura O Grito de Edvard Munch</a></li>
+            <li class="second-level"><a href="#analise-do-treinamento">Análise do treinamento</a></li>
+                
+    </ul>
+</div></div>
+        <div class="col-md-9" role="main">
+
+<p><a href="https://colab.research.google.com/github/GiovaniValdrighi/style_transfer/blob/main/notebooks/neural_style_transfer.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a></p>
+<h1 id="neural-style-transfer">Neural Style Transfer</h1>
+<p>Reprodução do algoritmo de transferência de estilo do artigo  <em>A Neural Algorithm of Artistic Style</em>, de Leon A. Gays, Alexander S. Ecker e Matthis Bethge. </p>
+<pre><code class="language-python">import torch
+import urllib
+import torch.nn as nn
+from PIL import Image
+import pickle as pkl
+from torchvision import transforms
+import torch.optim as optim
+from torchvision.models import vgg19
+from tqdm.notebook import tqdm
+import matplotlib.pyplot as plt
+%matplotlib inline
+</code></pre>
+<h2 id="introducao">Introdução</h2>
+<p>Em arte, principalmente em pinturas, os humanos dominaram a construção de experiências visuais que são formadas por uma complexa combinação do conteúdo e do estilo. Tal produção ainda não possui um algoritmo, e se é questionado se é possível a existência de um algoritmo de criação de grandes obras de arte.</p>
+<p>A área de visualização teve um grande desenvolvimento com o uso de redes neurais e Deep Learning, as redes convolucionais são extremamente potentes, sendo capazes de detectar objetos em imagens, detectar padrões.</p>
+<p>Quando as CNN são treinadas para a detecção de objetos, as camadas da rede aprendem a construir uma representação do conteúdo da imagem que vai além dos simples valores dos pixels, essa representação contém as principais características necessárias para as últimas camadas detectar qual é o objeto. Nesse trabalho, nós usaremos o resultado das últimas camadas de uma rede convolucional como a representação do conteúdo (content representation) da imagem de entrada.</p>
+<p>Para a representação do estilo (style representation) nós vamos utilizar um filtro que captura texturas, mas usaremos esse em diferentes camadas da rede para obter uma representação global do estilo.</p>
+<p>A principal descoberta desse artigo foi que a representação do conteúdo e do estilo de uma imagem são separáveis a partir dos resultados da rede convolucional.</p>
+<p><img alt="picture" src="https://raw.githubusercontent.com/GiovaniValdrighi/style_transfer/main/notebooks/images/content_style.jpg" /></p>
+<p>Como podemos obter a representação de estilo de uma imagem e a representação de conteúdo de uma imagem, o método proposto para trasferência de estilo faz é utilizar duas imagens, a imagem de conteúdo e a imagem de estilo, obter a representação delas, e com uma nova imagem, que pode ser um ruído qualquer, otimizar essa imagem para diminuir a distância da sua representação de estilo com a representação de estilo da imagem de estilo e diminuir a distância da sua representação de conteúdo com a representação de conteúdo da imagem de conteúdo.</p>
+<h2 id="pre-processamento-das-imagens">Pré-processamento das imagens</h2>
+<p>Usaremos a rede pré-treinada VGG-19 como rede convolucional para a representação de conteúdo e estilo de imagens. A rede foi apresentada em 2014, e a versão VGG-19 em específico possui 19 camadas de profundidade.</p>
+<p><img alt="picture" src="https://raw.githubusercontent.com/GiovaniValdrighi/style_transfer/main/notebooks/images/vgg19.png" /></p>
+<p>Como nós vamos utilizar a rede pré treinada VGG-19, devemos adequar as nossas imagens para essa rede. As entradas devem ter dimensão <span class="arithmatex">\([224, 224]\)</span>. Para isso, iremos transformar a iamgem original para ter largura <span class="arithmatex">\(256\)</span> e pegar o quadrado <span class="arithmatex">\([224, 224]\)</span> central. Além disso, o ideal para a rede é uma imagem com média <span class="arithmatex">\([0.485, 0.456, 0.406]\)</span> e desvio padrão <span class="arithmatex">\([0.229, 0.224, 0.225]\)</span>.</p>
+<p>Essas condições de entrada da rede VGG-19 se tornam um grande limite para o nosso método, pois não podemos treinar imagens em alta resolução com grandes dimensões. Além disso, existe uma pequena dificuldade em retornar a imagem para a média e o desvio padrão originais.</p>
+<pre><code class="language-python">preprocess = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+
+def load_image(path):
+    '''Function that load the image and preprocess to the VGG19 format
+    The image must be with shape 224x224, with mean [0.485, 0.456, 0.406]
+    and standard deviation [0.229, 0.224, 0.225]'''
+    img = Image.open(path)
+    return preprocess(img).unsqueeze(0)
+
+</code></pre>
+<h2 id="modelo">Modelo</h2>
+<p>O modelo irá utilizar a rede convolucional VGG_19 que a API do Pytorch possibilita o acesso. Ele irá receber duas lista de índices de quais camadas deve utilizar para obter a representação de conteúdo e de estilo, por padrão, as camadas utilizadas no paper são as seguintes:</p>
+<ul>
+<li>Conteúdo : [21] = ['Conv4_2']</li>
+<li>Estilo : [0, 5, 10, 19, 28] = ['Conv1_1', 'Conv2_1', 'Conv3_1', 'Conv4_1', 'Conv5_1']</li>
+</ul>
+<p>O treinamento neste trabalho utiliza as mesmas camadas, mas este é um parâmetro ajustável da função. O que o modelo faz é receber a imagem de treinamento, passar ela pelas camadas e verificar se a camada é ou uma camada de estilo ou de conteúdo, e caso seja, ele salva esse resultado.</p>
+<pre><code class="language-python">class vgg19_mod(nn.Module):
+    def __init__(self, content_layers, style_layers):
+        '''
+        Class that initialize the VGG19 model and set the intermediate style and content layers
+
+        Inputs:
+            style_layers : list of index of the style layers in the VGG19 net
+            content_layers: list of index of the content layers in the VGG19 net
+        '''
+        super(vgg19_mod, self).__init__()
+        features = list(vgg19(pretrained = True).features)
+        self.features = nn.ModuleList(features).eval()
+        self.style_layers = style_layers
+        self.content_layers = content_layers
+
+    def forward(self,  input):
+        '''
+        Forward process that pass the input image trought the VGG 19 net and keeps the intermediates outputs
+
+        Inputs:
+            input : tensor of shape [batch, 3, 224, 224] 
+
+        Outputs:
+            style_out : list of style layers outputs
+            cotent_out : list of content layers outputs
+        '''
+        style_out = []
+        content_out = []
+        for i, model in enumerate(self.features):
+            input = model(input)
+            if i in self.style_layers:
+                style_out.append(input)
+            if i in self.content_layers:
+                content_out.append(input)
+        return content_out, style_out
+
+</code></pre>
+<h2 id="funcao-de-perda">Função de perda</h2>
+<p>Seja <span class="arithmatex">\(\pmb x\)</span> o tensor da imagem que vamos treinar, <span class="arithmatex">\(\pmb p\)</span> é o tensor da imagem de conteúdo e <span class="arithmatex">\(\pmb a\)</span> o tensor da imagem de estilo. A função de perda (loss) será definida por dois termos, a perda de conteúdo e de estilo.</p>
+<p>Definimos <span class="arithmatex">\(F^l\)</span> como a representação de conteúdo de <span class="arithmatex">\(\pmb x\)</span> na camada <span class="arithmatex">\(l\)</span> e <span class="arithmatex">\(P^l\)</span> a representação de conteúdo de <span class="arithmatex">\(\pmb p\)</span> na camada <span class="arithmatex">\(l\)</span>. Se <span class="arithmatex">\(l\)</span> é uma camada que gera <span class="arithmatex">\(N_l\)</span> filtros com um total de <span class="arithmatex">\(M_l\)</span> elementos (largura vezes altura), então <span class="arithmatex">\(F_l \in \mathbb {R}^{N_l \times M_l}\)</span> e <span class="arithmatex">\(P_l \in \mathbb {R}^{N_l \times M_l}\)</span>. A nossa perda será a distância quadrática média <span class="arithmatex">\(F_l\)</span> e <span class="arithmatex">\(P_l\)</span>.</p>
+<p><span class="arithmatex">\(L_{content}(\pmb x, \pmb p, \pmb l) = \dfrac{1}{N_l M_l}\sum_{i,j}(F_{ij}^l - P_{ij}^l)^2\)</span></p>
+<pre><code class="language-python">def content_loss(pred, target):
+    '''The content loss is the mean squared error'''
+    return torch.pow(pred - target, 2).mean()
+</code></pre>
+<p>Para a perda do estilo, em cada uma das camadas usadas para o estilo, iremos utilizar um método para cálculo de textura que computa a correlação, esse fator é a matriz de Gram <span class="arithmatex">\(G_l\)</span>, que é definida como, o produto interno das colunas de <span class="arithmatex">\(F_l\)</span> (a representação do tensor que estamos treinando <span class="arithmatex">\(\pmb x\)</span>). Agora seja <span class="arithmatex">\(\pmb a\)</span> o tensor de estilo e <span class="arithmatex">\(A_l\)</span> a matriz de Gram calculada para a representação de <span class="arithmatex">\(\pmb a\)</span> na camda <span class="arithmatex">\(l\)</span>. A perda do estilo será definida como:</p>
+<p><span class="arithmatex">\(L_{style}(\pmb x, \pmb a, \pmb l) = \dfrac{1}{N_l M_l}\sum_{i,j}(G_{ij}^l - A_{ij}^l)^2\)</span></p>
+<pre><code class="language-python">def gram_matrice(input):
+    '''
+    Compute the gram matrice of the input tensor
+    The gram matrice of V is V'V, but we have to change the input to 2 dimensios
+    Than we normalize by the number of elements
+    '''
+    batch, channel, width, height = input.size()
+    M = input.view(batch * channel, width * height)
+    gram = torch.mm(M, M.t())
+    return gram.div(batch*width*height*channel)
+
+def style_loss(pred, gram_target):
+    '''The style loss if the euclidian distance of the Gram matrice '''
+    gram_pred = gram_matrice(pred)
+    return torch.pow(gram_pred - gram_target, 2).mean()
+</code></pre>
+<p>A perda final tem então a seguinte forma:</p>
+<p>$L_{total}(\pmb x, \pmb p, \pmb a) = \alpha L_{content}(\pmb x, \pmb p) + \beta L_{style}(\pmb x, \pmb a) $</p>
+<p>Sendo <span class="arithmatex">\(\alpha\)</span> e <span class="arithmatex">\(\beta\)</span> os parâmetros que escolhemos para o treinamento dar mais prioridade para o conteúdo e para o estilo, reespectivamente.</p>
+<h2 id="treinamento">Treinamento</h2>
+<p>Por fim, o treinamento ocorre da seguinte forma:
+1. Instanciamos o modelo.
+2. Obtemos as representações de conteúdo e de estilo das imagens de conteúdo e de estilo, reespectivamente.
+3. Definimos uma imagem que será otimizada, o valor inicial dela é o mesmo da imagem de conteúdo.
+4. Instanciamos o otimizador L-BFGS.
+5. Para cada iteração da otimização:
+    * Computamos a representação de conteúdo e de estilo da imagem de treinamento.
+    * Computamos a perda de conteúdo e de estilo das representações.
+    * Com o método de backward do Pytorch, computamos os gradientes da perda.
+    * Passamos o valor da perda e o valor do gradiente para o método do L-BFGS dar um passo (step).
+6. Por fim, invertemos a transformação inicial de pré-processamento, retornando a média e o desvio padrão originais.</p>
+<pre><code class="language-python">def run_style_transfer(content_path, style_path, iterations = 20, content_layers = None, style_layers = None, 
+                       content_weight = 1, style_weight = 1000000, verbose = False, cuda = False, return_loss = False):
+    '''
+    Training process for the neural style transfer VGG19
+    The method uses two images, the content and the style image, and generate a image that 
+    contain the content and the style of the reespective images
+    The optimization is done by LBFGS
+
+    Inputs:
+        content_path : path for the content image
+        style_path : path for the style image
+        iterations: number of iterations to converge
+        content_layers : list of index of VGG19 content layers
+        style_layers : list of index of VGG19 style layers
+        content_weight : weight of the content loss
+        style_weight : weight of the style loss
+        verbose : if the function will print intermediate steps
+        cuda: if the function will process using GPU
+        return_loss: if the function will return the loss value for each epoch
+
+    Outputs:
+        init_image : result image with content and style
+
+    '''
+    if cuda:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        if verbose:
+            print(&quot;Running model with&quot;, device)
+    else:
+        device = torch.device('cpu')
+
+    #Create loss dict
+    if return_loss:
+        losses = {'style_loss': [], 'content_loss': [], 'total_loss':[]}
+
+    #Setting intermediate layers
+    if content_layers is None:
+        content_layers = [22]
+
+    if style_layers is None:
+        style_layers = [1, 6, 11, 20, 29]
+
+    #Loading the model
+    model = vgg19_mod(content_layers, style_layers).to(device)
+
+    if verbose:
+        print('Initialized model.')
+
+    #Loading the images as tensors
+    content_img = load_image(content_path).to(device)
+    style_img = load_image(style_path).to(device)
+    init_img = load_image(content_path).to(device)
+    if verbose:
+        print('Initialized images.')
+
+    #Getting the content and style outputs
+    content_out, _ = model(content_img)
+    _, style_out = model(style_img)
+    if verbose:
+        print('Calculated images outputs.')
+
+    #Pre-calculating the gram matrice for the styles outputs
+    gram_out = [gram_matrice(out) for out in style_out]
+
+    #Setting optmizer
+    optmizer = optim.LBFGS([init_img.requires_grad_()])
+    if verbose:
+        print('Starting optimization.')
+    for iter in tqdm(range(iterations)):
+        if return_loss:
+            _iter_style_loss = []
+            _iter_content_loss = []
+            _iter_total_loss = []
+
+        def closure():
+            '''Calculate ouputs, loss and gradients'''
+            optmizer.zero_grad()
+
+            init_content_out, init_style_out = model(init_img)
+
+            _content_loss = 0
+            for l in range(len(content_out)):
+                _content_loss += content_loss(init_content_out[l], content_out[l])
+
+            _style_loss = 0
+            for l in range(len(style_out)):
+                _style_loss += style_loss(init_style_out[l],  gram_out[l])
+
+            _content_loss *= content_weight
+            _style_loss *= style_weight
+
+            loss = _content_loss + _style_loss
+
+            loss.backward(retain_graph=True)
+
+            if iter % 100 == 0 and iter &gt; 0:
+                if verbose:
+                    print('Iteration %d.  Model loss %.8f'%(iter, loss))
+                    print('Content loss: %.8f | Style loss: %.8f'%(_content_loss, _style_loss))
+                    print()
+
+            #Update loss dict
+            if return_loss:
+                _iter_style_loss.append(_style_loss.clone().data.cpu().numpy())
+                _iter_content_loss.append(_content_loss.clone().data.cpu().numpy())
+                _iter_total_loss.append(loss.clone().data.cpu().numpy())
+
+            return _content_loss + _style_loss
+        optmizer.step(closure)
+        if return_loss:
+            losses['style_loss'].append(_iter_style_loss[-1])
+            losses['content_loss'].append(_iter_content_loss[-1])
+            losses['total_loss'].append(_iter_total_loss[-1])
+
+
+    #Invert VGG19 input transformation
+    invTrans = transforms.Compose([transforms.Normalize(mean = [ 0., 0., 0. ],
+                                                        std = [ 1/0.229, 1/0.224, 1/0.225 ]),
+                                   transforms.Normalize(mean = [ -0.485, -0.456, -0.406 ],
+                                                        std = [ 1., 1., 1. ])])
+    inv_img = invTrans(init_img.squeeze(0))
+
+    if return_loss:
+        return inv_img, losses
+    else:
+        return inv_img
+</code></pre>
+<h2 id="exemplos">Exemplos</h2>
+<h3 id="gata-e-noite-estrelada-de-van-gogh">Gata e Noite estrelada de Van Gogh</h3>
+<p>Como primeiro exemplo, vamos utilizar a imagem de uma gata e a pintura Noite Estrelada do Van Gogh, no entanto, vamos variar os parâmetros <span class="arithmatex">\(\alpha\)</span> e <span class="arithmatex">\(\beta\)</span> para observar o resultado na imagem final. Na realidade, iremos variar apenas a ração <span class="arithmatex">\(\dfrac{\beta}{\alpha}\)</span>, pois o resultado é o mesmo.</p>
+<pre><code class="language-python">cat_path = '/content/cat.jpg'
+stary_night_path = '/content/stary_night.jpg'
+cat_stary_dict = {}
+for ratio in [1e5, 1e6, 1e7]:
+    cat_stary_dict[ratio] = run_style_transfer(cat_path, stary_night_path, 
+                                                             verbose = False, cuda = True,
+                                                             content_weight = 1,
+                                                             style_weight = ratio)
+</code></pre>
+<p>A imagem utilizada como conteúdo e como estilo são as seguintes.</p>
+<pre><code class="language-python">fig, ax = plt.subplots(nrows = 1, ncols = 2)
+fig.set_figwidth(20)
+fig.set_figheight(10)
+
+ax[0].set_title('Content image')
+content_image = Image.open('cat.jpg')
+ax[0].imshow(content_image)
+ax[0].axis('off')
+
+ax[1].set_title(&quot;Style image&quot;)
+style_image = Image.open('stary_night.jpg')
+ax[1].imshow(style_image)
+ax[1].axis('off')
+plt.show()
+</code></pre>
+<p><img alt="png" src="../output_23_0.png" /></p>
+<p>E o resultado final é o seguinte, para cada uma das razões:</p>
+<pre><code class="language-python">fig, ax = plt.subplots(nrows = 1, ncols = 3)
+fig.set_figwidth(20)
+fig.set_figheight(12)
+for i, ratio in enumerate([1e5, 1e6, 1e7]):
+    img = cat_stary_dict[ratio].cpu().detach().permute(1, 2, 0).data.clamp_(0, 1).numpy()
+    #img -= img.min()
+    #img /= img.max()
+    #print(img.min(), img.max())
+    ax[i].imshow(img)
+    ax[i].set_title(&quot;Style/content weight ratio:&quot; + str(ratio))
+    ax[i].axis('off')
+
+plt.subplots_adjust(wspace=0.1, hspace=0.05)
+plt.show()
+</code></pre>
+<p><img alt="png" src="../output_25_0.png" /></p>
+<h3 id="cachorro-e-pintura-o-grito-de-edvard-munch">Cachorro e pintura O Grito de Edvard Munch</h3>
+<pre><code class="language-python">dog_path = '/content/little_dog.jpg'
+grito_path = '/content/scream.jpg'
+dog_grito_dict = {}
+for ratio in [1e5, 1e6, 1e7]:
+    dog_grito_dict[ratio] = run_style_transfer(dog_path, grito_path, iterations = 50, 
+                                                             verbose = False, cuda = True,
+                                                             content_weight = 1,
+                                                             style_weight = ratio)
+</code></pre>
+<pre><code class="language-python">fig, ax = plt.subplots(nrows = 1, ncols = 2)
+fig.set_figwidth(20)
+fig.set_figheight(10)
+
+ax[0].set_title('Content image')
+content_image = Image.open('little_dog.jpg')
+ax[0].imshow(content_image)
+ax[0].axis('off')
+
+ax[1].set_title(&quot;Style image&quot;)
+style_image = Image.open('scream.jpg')
+ax[1].imshow(style_image)
+ax[1].axis('off')
+plt.show()
+</code></pre>
+<p><img alt="png" src="../output_28_0.png" /></p>
+<pre><code class="language-python">fig, ax = plt.subplots(nrows = 1, ncols = 3)
+fig.set_figwidth(20)
+fig.set_figheight(12)
+for i, ratio in enumerate([1e5, 1e6, 1e7]):
+    img = dog_grito_dict[ratio].cpu().detach().permute(1, 2, 0).data.clamp_(0, 1).numpy()
+    ax[i].imshow(img)
+    ax[i].set_title(&quot;Style/content weight ratio:&quot; + str(ratio))
+    ax[i].axis('off')
+
+plt.subplots_adjust(wspace=0.1, hspace=0.05)
+plt.show()
+</code></pre>
+<p><img alt="png" src="../output_29_0.png" /></p>
+<h2 id="analise-do-treinamento">Análise do treinamento</h2>
+<p>Vamos começar observando o comportamento da loss ao decorrer das iterações e encontrar o número de iterações que otimiza o tempo de processamento e o valor da loss. Queremos obter esse valor ótimo para sermos capazes de processar uma grande quantidade de imagens, como é necessário ao aplicarmos o método em um vídeo.</p>
+<pre><code class="language-python">cat_stary, cat_stary_loss = run_style_transfer('cat.jpg', 'stary_night.jpg', iterations = 100, 
+                                               cuda = True, return_loss = True)
+</code></pre>
+<pre><code class="language-python">fig, ax = plt.subplots(nrows = 1, ncols = 2)
+fig.set_figwidth(20)
+fig.set_figheight(10)
+
+ax[0].set_title('Model losses')
+ax[0].plot(list(range(len(cat_stary_loss['content_loss']))), cat_stary_loss['content_loss'],
+           linewidth = 3, label = 'Content loss')
+ax[0].plot(list(range(len(cat_stary_loss['style_loss']))), cat_stary_loss['style_loss'],
+           linewidth = 3, label = 'Style loss')
+ax[0].plot(list(range(len(cat_stary_loss['total_loss']))), cat_stary_loss['total_loss'],
+           linewidth = 3, label = 'Total loss')
+
+ax[0].legend()
+
+ax[1].set_title(&quot;Style loss&quot;)
+ax[1].set_title('Model losses')
+ax[1].plot(list(range(len(cat_stary_loss['content_loss']))), cat_stary_loss['content_loss'],
+           linewidth = 3, label = 'Content loss')
+ax[1].plot(list(range(len(cat_stary_loss['style_loss']))), cat_stary_loss['style_loss'],
+           linewidth = 3, label = 'Style loss')
+ax[1].plot(list(range(len(cat_stary_loss['total_loss']))), cat_stary_loss['total_loss'],
+           linewidth = 3, label = 'Total loss')
+ax[1].set_ylim(0, 10)
+ax[1].set_xlim(0, 100)
+ax[1].legend()
+
+plt.show()
+</code></pre>
+<p><img alt="png" src="../output_32_0.png" /></p>
+<p>Vemos que o método tem uma rápida convergência, mantendo o mesmo valor da loss para todas as iterações após as 30 primeiras. Dessa forma, podemos realizar o treinamento com apenas 30 iterações para evitar extra processamento.</p>
+<pre><code class="language-python">images = [('/content/jovem.jpg','/content/natureza_morta.jpg'), 
+          ('/content/fgv.jpg', '/content/picasso.jpg')]
+images_style = []
+for im in images:
+    images_style.append(run_style_transfer(im[0], im[1], iterations = 20, 
+                                                             verbose = False, cuda = True,
+                                                             style_weight = ratio))
+</code></pre>
+<pre><code class="language-python">fig, ax = plt.subplots(nrows = 2, ncols = 2)
+ax = ax.flatten()
+fig.set_figwidth(20)
+fig.set_figheight(10)
+
+ax[0].set_title('Content image')
+content_image = Image.open(images[0][0])
+ax[0].imshow(content_image)
+ax[0].axis('off')
+
+ax[1].set_title(&quot;Style image&quot;)
+style_image = Image.open(images[0][1])
+ax[1].imshow(style_image)
+ax[1].axis('off')
+
+ax[2].set_title('Content image')
+content_image = Image.open(images[1][0])
+ax[2].imshow(content_image)
+ax[2].axis('off')
+
+ax[3].set_title(&quot;Style image&quot;)
+style_image = Image.open(images[1][1])
+ax[3].imshow(style_image)
+ax[3].axis('off')
+
+plt.subplots_adjust(wspace=0.1, hspace=0.05)
+plt.show()
+</code></pre>
+<p><img alt="png" src="../output_35_0.png" /></p>
+<pre><code class="language-python">fig, ax = plt.subplots(nrows = 1, ncols = 2)
+fig.set_figwidth(20)
+fig.set_figheight(12)
+for i, im in enumerate(images_style):
+    img_to_plot = im.cpu().detach().permute(1, 2, 0).data.clamp_(0, 1).numpy()
+    ax[i].imshow(img_to_plot)
+    ax[i].axis('off')
+
+plt.subplots_adjust(wspace=0.1, hspace=0.05)
+plt.show()
+</code></pre>
+<p><img alt="png" src="../output_36_0.png" /></p></div>
+        
+        
+    </div>
+
+    
+      <footer class="col-md-12 text-center">
+          
+          
+            <hr>
+            <p>
+            <small>Documentation built with <a href="http://www.mkdocs.org/">MkDocs</a>.</small>
+            </p>
+          
+
+          
+          
+      </footer>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <script src="../js/bootstrap-3.0.3.min.js"></script>
+
+    
+    <script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.18.0/build/highlight.min.js"></script>
+        
+    <script>hljs.initHighlightingOnLoad();</script>
+    
+
+    <script>var base_url = ".."</script>
+    
+    <script src="../js/base.js"></script>
+    <script src="../javascripts/config.js"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../search/main.js"></script>
+
+    <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+            </div>
+            <div class="modal-body">
+                <p>
+                    From here you can search these documents. Enter
+                    your search terms below.
+                </p>
+                <form>
+                    <div class="form-group">
+                        <input type="text" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+    </body>
+
+</html>
