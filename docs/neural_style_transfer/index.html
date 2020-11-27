@@ -153,15 +153,15 @@ import matplotlib.pyplot as plt
 <h2 id="introducao">Introdução</h2>
 <p>Em arte, principalmente em pinturas, os humanos dominaram a construção de experiências visuais que são formadas por uma complexa combinação do conteúdo e do estilo. Tal produção ainda não possui um algoritmo, e se é questionado se é possível a existência de um algoritmo de criação de grandes obras de arte.</p>
 <p>A área de visualização teve um grande desenvolvimento com o uso de redes neurais e Deep Learning, as redes convolucionais são extremamente potentes, sendo capazes de detectar objetos em imagens, detectar padrões.</p>
-<p>Quando as CNN são treinadas para a detecção de objetos, as camadas da rede aprendem a construir uma representação do conteúdo da imagem que vai além dos simples valores dos pixels, essa representação contém as principais características necessárias para as últimas camadas detectar qual é o objeto. Nesse trabalho, nós usaremos o resultado das últimas camadas de uma rede convolucional como a representação do conteúdo (content representation) da imagem de entrada.</p>
-<p>Para a representação do estilo (style representation) nós vamos utilizar um filtro que captura texturas, mas usaremos esse em diferentes camadas da rede para obter uma representação global do estilo.</p>
+<p>Quando as CNN são treinadas para a detecção de objetos, as camadas da rede aprendem a construir uma representação do conteúdo da imagem que vai além dos simples valores dos pixels, essa representação contém as principais características necessárias para as últimas camadas detectar qual é o objeto. Nesse trabalho, foi usado o resultado das últimas camadas de uma rede convolucional como a representação do conteúdo (content representation) da imagem de entrada.</p>
+<p>Para a representação do estilo (style representation) é utilizado um filtro que captura texturas, mas é usado diferentes camadas da rede para obter uma representação global do estilo.</p>
 <p>A principal descoberta desse artigo foi que a representação do conteúdo e do estilo de uma imagem são separáveis a partir dos resultados da rede convolucional.</p>
 <p><img alt="picture" src="https://raw.githubusercontent.com/GiovaniValdrighi/style_transfer/main/notebooks/images/content_style.jpg" /></p>
 <p>Como podemos obter a representação de estilo de uma imagem e a representação de conteúdo de uma imagem, o método proposto para trasferência de estilo faz é utilizar duas imagens, a imagem de conteúdo e a imagem de estilo, obter a representação delas, e com uma nova imagem, que pode ser um ruído qualquer, otimizar essa imagem para diminuir a distância da sua representação de estilo com a representação de estilo da imagem de estilo e diminuir a distância da sua representação de conteúdo com a representação de conteúdo da imagem de conteúdo.</p>
 <h2 id="pre-processamento-das-imagens">Pré-processamento das imagens</h2>
 <p>Usaremos a rede pré-treinada VGG-19 como rede convolucional para a representação de conteúdo e estilo de imagens. A rede foi apresentada em 2014, e a versão VGG-19 em específico possui 19 camadas de profundidade.</p>
 <p><img alt="picture" src="https://raw.githubusercontent.com/GiovaniValdrighi/style_transfer/main/notebooks/images/vgg19.png" /></p>
-<p>Como nós vamos utilizar a rede pré treinada VGG-19, devemos adequar as nossas imagens para essa rede. As entradas devem ter dimensão <span class="arithmatex">\([224, 224]\)</span>. Para isso, iremos transformar a iamgem original para ter largura <span class="arithmatex">\(256\)</span> e pegar o quadrado <span class="arithmatex">\([224, 224]\)</span> central. Além disso, o ideal para a rede é uma imagem com média <span class="arithmatex">\([0.485, 0.456, 0.406]\)</span> e desvio padrão <span class="arithmatex">\([0.229, 0.224, 0.225]\)</span>.</p>
+<p>Como será utilizada a rede pré treinada VGG-19, devemos adequar as nossas imagens para essa rede. As entradas devem ter dimensão <span class="arithmatex">\([224, 224]\)</span>. Para isso, iremos transformar a imagem original para ter largura <span class="arithmatex">\(256\)</span> e pegar o quadrado <span class="arithmatex">\([224, 224]\)</span> central. Além disso, o ideal para a rede é uma imagem com média <span class="arithmatex">\([0.485, 0.456, 0.406]\)</span> e desvio padrão <span class="arithmatex">\([0.229, 0.224, 0.225]\)</span>.</p>
 <p>Essas condições de entrada da rede VGG-19 se tornam um grande limite para o nosso método, pois não podemos treinar imagens em alta resolução com grandes dimensões. Além disso, existe uma pequena dificuldade em retornar a imagem para a média e o desvio padrão originais.</p>
 <pre><code class="language-python">preprocess = transforms.Compose([
     transforms.Resize(256),
@@ -402,6 +402,22 @@ for ratio in [1e5, 1e6, 1e7]:
                                                              content_weight = 1,
                                                              style_weight = ratio)
 </code></pre>
+<pre><code>HBox(children=(FloatProgress(value=0.0, max=20.0), HTML(value='')))
+
+
+
+
+
+
+HBox(children=(FloatProgress(value=0.0, max=20.0), HTML(value='')))
+
+
+
+
+
+
+HBox(children=(FloatProgress(value=0.0, max=20.0), HTML(value='')))
+</code></pre>
 <p>A imagem utilizada como conteúdo e como estilo são as seguintes.</p>
 <pre><code class="language-python">fig, ax = plt.subplots(nrows = 1, ncols = 2)
 fig.set_figwidth(20)
@@ -509,7 +525,7 @@ ax[1].legend()
 plt.show()
 </code></pre>
 <p><img alt="png" src="../output_32_0.png" /></p>
-<p>Vemos que o método tem uma rápida convergência, mantendo o mesmo valor da loss para todas as iterações após as 30 primeiras. Dessa forma, podemos realizar o treinamento com apenas 30 iterações para evitar extra processamento.</p>
+<p>Vemos que o método tem uma rápida convergência, mantendo o mesmo valor da loss para todas as iterações após as 20 primeiras. Dessa forma, podemos realizar o treinamento com apenas 30 iterações para evitar extra processamento.</p>
 <pre><code class="language-python">images = [('/content/jovem.jpg','/content/natureza_morta.jpg'), 
           ('/content/fgv.jpg', '/content/picasso.jpg')]
 images_style = []
@@ -517,6 +533,15 @@ for im in images:
     images_style.append(run_style_transfer(im[0], im[1], iterations = 20, 
                                                              verbose = False, cuda = True,
                                                              style_weight = ratio))
+</code></pre>
+<pre><code>HBox(children=(FloatProgress(value=0.0, max=20.0), HTML(value='')))
+
+
+
+
+
+
+HBox(children=(FloatProgress(value=0.0, max=20.0), HTML(value='')))
 </code></pre>
 <pre><code class="language-python">fig, ax = plt.subplots(nrows = 2, ncols = 2)
 ax = ax.flatten()
