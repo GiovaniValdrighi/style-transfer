@@ -1,6 +1,6 @@
 # Neural Style Transfer
 
-Project on the discipline of Neural Networks of the Master Course in Mathematical Modeling at EMAp FGV. In this work, I reproduce the work in the article _A Neural Algorithm of Artistic Style_, by Leon A. Gays, Alexander S. Ecker and Matthis Bethge. Some tests are made in how to adapt the style transfer for videos. It was made use of Pytorch for the implementation. There is a web-page with the explanation of the [implementation](https://giovanivaldrighi.github.io/style-transfer/). You can make few changes on the code to run the style transfer on your own images.
+Project on the discipline of Neural Networks and Deep Learning at the course of Master degree in Mathematical Modelling at EMAp FGV. In this work, I reproduce the work in the article _A Neural Algorithm of Artistic Style_, by Leon A. Gays, Alexander S. Ecker, and Matthis Bethge. This article uses a convolutional neural network to represent the content and the style of an image. Then, with the optimization of new layers, can transfer the content to be represented in a new style. Some tests are made on how to adapt the style transfer for videos. It was made use of Pytorch for the implementation. There is a web page explaining the [implementation](https://giovanivaldrighi.github.io/style-transfer/). You can make a few changes to the code to run the style transfer on your own images.
 
 ![Style and Content](https://raw.githubusercontent.com/GiovaniValdrighi/style-transfer/main/docs/output_23_0.png)
 
